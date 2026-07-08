@@ -19,7 +19,7 @@ const STABLE_SYMBOLS = new Set(["usdt","usdc","dai","busd","tusd","usdp","fdusd"
 
 function formatMoney(n){ return `$${Number(n ?? 0).toLocaleString()}`; }
 function isStablecoin(c){ return STABLE_SYMBOLS.has(String(c.symbol||"").toLowerCase()); }
-function signalForPct(pct){ if (pct <= -3) return "BUY"; if (pct >= 5) return "SELL"; return "HOLD"; }
+function signalForPct(pct){ if (pct <= -2) return "BUY"; if (pct >= 2.5) return "SELL"; return "HOLD"; }
 function signalClass(s){ return s==="BUY" ? "sig-buy" : s==="SELL" ? "sig-sell" : "sig-hold"; }
 function compare(a,b,key,dir){ const av=Number(a?.[key]??0), bv=Number(b?.[key]??0); return dir==="asc" ? av-bv : bv-av; }
 
