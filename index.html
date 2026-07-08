@@ -1,1 +1,61 @@
-<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Crypto Scanner</title><link rel="stylesheet" href="styles.css"></head><body><main class="container"><h1>Crypto Scanner</h1><p class="subtitle">Simple live market view</p><div class="controls"><button id="refreshBtn">Refresh</button><span id="status">Idle</span></div><table id="coinsTable"><thead><tr><th>Coin</th><th>Symbol</th><th>Price (USD)</th><th>24h %</th><th>Market Cap</th></tr></thead><tbody></tbody></table></main><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Scanner</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Crypto Scanner</h1>
+    <p class="subtitle">Scanner ready</p>
+
+    <div class="controls">
+      <button id="refreshBtn">Refresh</button>
+
+      <select id="tfSelect">
+        <option value="1h">Timeframe: 1 Hour</option>
+        <option value="4h">Timeframe: 4 Hours</option>
+        <option value="24h" selected>Timeframe: 1 Day</option>
+        <option value="7d">Timeframe: 1 Week</option>
+      </select>
+
+      <input id="searchInput" type="text" placeholder="Search coin or symbol" />
+
+      <select id="sortSelect">
+        <option value="market_cap:desc">Sort: Market Cap ↓</option>
+        <option value="market_cap:asc">Sort: Market Cap ↑</option>
+        <option value="current_price:desc">Sort: Price ↓</option>
+        <option value="current_price:asc">Sort: Price ↑</option>
+        <option value="tf_change_pct:desc">Sort: Change ↓</option>
+        <option value="tf_change_pct:asc">Sort: Change ↑</option>
+      </select>
+
+      <label style="display:inline-flex;align-items:center;gap:8px;color:#9aa4c7;font-size:14px;">
+        <input type="checkbox" id="hideStable" />
+        Hide stablecoins
+      </label>
+
+      <span id="status">Idle</span>
+    </div>
+
+    <table id="coinsTable">
+      <thead>
+        <tr>
+          <th>Coin</th>
+          <th>Symbol</th>
+          <th>Price (USD)</th>
+          <th>Change %</th>
+          <th>Timeframe</th>
+          <th>Market Cap</th>
+          <th>Signal</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </main>
+
+  <script src="app.js?v=4"></script>
+</body>
+</html>
