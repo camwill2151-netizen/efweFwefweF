@@ -13,6 +13,19 @@ function formatMoney(n) {
   return `$${Number(n ?? 0).toLocaleString()}`;
 }
 
+function signalForCoin(coin) {
+  const pct = Number(coin.price_change_percentage_24h ?? 0);
+  if (pct <= -3) return "BUY";
+  if (pct >= 5) return "SELL";
+  return "HOLD";
+}
+
+function signalClass(signal) {
+  if (signal === "BUY") return "sig-buy";
+  if (signal === "SELL") return "sig-sell";
+  return "sig-hold";
+}
+
 function compare(a, b, key, dir) {
   const av = Number(a?.[key] ?? 0);
   const bv = Number(b?.[key] ?? 0);
@@ -25,9 +38,7 @@ function getFilteredCoins() {
 
   if (q) {
     list = list.filter(
-      c =>
-        c.name.toLowerCase().includes(q) ||
-        c.symbol.toLowerCase().includes(q)
+      c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)
     );
   }
 
@@ -53,7 +64,7 @@ function renderRows(coins) {
 
   if (!coins.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="5">No matching coins</td>`;
+    tr.innerHTML = `<td colspan="6">No matching coins</td>`;
     tbody.appendChild(tr);
     renderTopMover([]);
     return;
@@ -61,7 +72,8 @@ function renderRows(coins) {
 
   for (const coin of coins) {
     const tr = document.createElement("tr");
-    const pct = coin.price_change_percentage_24h ?? 0;
+    const pct = Number(coin.price_change_percentage_24h ?? 0);
+    const signal = signalForCoin(coin);
 
     tr.innerHTML = `
       <td>${coin.name}</td>
@@ -69,6 +81,7 @@ function renderRows(coins) {
       <td>${formatMoney(coin.current_price)}</td>
       <td class="${pct >= 0 ? "pos" : "neg"}">${pct.toFixed(2)}%</td>
       <td>${formatMoney(coin.market_cap)}</td>
+      <td><span class="signal ${signalClass(signal)}">${signal}</span></td>
     `;
     tbody.appendChild(tr);
   }
@@ -116,13 +129,13 @@ function ensureControlsUI() {
     const input = document.createElement("input");
     input.id = "searchInput";
     input.type = "text";
-    input.placeholder = "Search coin or symbol (e.g. btc, ethereum)";
+    input.placeholder = "Search coin or symbol";
     input.style.padding = "10px 12px";
     input.style.borderRadius = "10px";
     input.style.border = "1px solid #263056";
     input.style.background = "#0b1020";
     input.style.color = "#e8ecf7";
-    input.style.minWidth = "240px";
+    input.style.minWidth = "220px";
     input.addEventListener("input", applyFilterAndSort);
     controls.appendChild(input);
   }
@@ -156,7 +169,19 @@ function ensureControlsUI() {
   }
 }
 
+function ensureSignalHeader() {
+  const headRow = document.querySelector("#coinsTable thead tr");
+  if (!headRow) return;
+  const hasSignal = [...headRow.children].some(th => th.textContent.trim().toLowerCase() === "signal");
+  if (!hasSignal) {
+    const th = document.createElement("th");
+    th.textContent = "Signal";
+    headRow.appendChild(th);
+  }
+}
+
 refreshBtn.addEventListener("click", fetchCoins);
 ensureControlsUI();
+ensureSignalHeader();
 fetchCoins();
 startAutoRefresh();

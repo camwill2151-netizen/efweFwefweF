@@ -1,1 +1,12 @@
 body{margin:0;font-family:Arial,sans-serif;background:#0f1730;color:#e8ecf7}.container{max-width:960px;margin:40px auto;padding:24px;background:#121a33;border:1px solid #263056;border-radius:14px}.controls{display:flex;gap:12px;align-items:center;margin-bottom:16px}button{background:#3861fb;color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px;border-bottom:1px solid #263056}.pos{color:#16c784}.neg{color:#ea3943}.subtitle,#status,th{color:#9aa4c7}
+
+.signal{
+  padding:4px 8px;
+  border-radius:999px;
+  font-weight:700;
+  font-size:12px;
+  letter-spacing:.3px;
+}
+.sig-buy{ background:rgba(22,199,132,.18); color:#16c784; }
+.sig-sell{ background:rgba(234,57,67,.18); color:#ea3943; }
+.sig-hold{ background:rgba(154,164,199,.18); color:#c7cde6; }
