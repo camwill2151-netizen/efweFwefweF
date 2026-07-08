@@ -18,10 +18,10 @@ let sortDir = "desc";
 const STABLE_SYMBOLS = new Set(["usdt","usdc","dai","busd","tusd","usdp","fdusd","gusd","lusd","frax","pyusd","usdd"]);
 
 function formatMoney(n){ return `$${Number(n ?? 0).toLocaleString()}`; }
-function isStablecoin(c){ return STABLE_SYMBOLS.has(String(c.symbol||"").toLowerCase()); }
+function isStablecoin(c){ return STABLE_SYMBOLS.has(String(c.symbol || "").toLowerCase()); }
 function signalForPct(pct){ if (pct <= -2) return "BUY"; if (pct >= 2.5) return "SELL"; return "HOLD"; }
 function signalClass(s){ return s==="BUY" ? "sig-buy" : s==="SELL" ? "sig-sell" : "sig-hold"; }
-function compare(a,b,key,dir){ const av=Number(a?.[key]??0), bv=Number(b?.[key]??0); return dir==="asc" ? av-bv : bv-av; }
+function compare(a,b,key,dir){ const av=Number(a?.[key] ?? 0), bv=Number(b?.[key] ?? 0); return dir==="asc" ? av-bv : bv-av; }
 
 function tfFrom24h(p24h, tf){
   const v = Number(p24h ?? 0);
@@ -34,16 +34,30 @@ function tfFrom24h(p24h, tf){
 function getFilteredCoins(){
   const q = (searchInput?.value || "").trim().toLowerCase();
   const hide = hideStable?.checked ?? false;
+
   let list = [...allCoins];
+
   if (hide) list = list.filter(c => !isStablecoin(c));
-  if (q) list = list.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));
+
+  if (q) {
+    list = list.filter(c => {
+      const name = String(c.name || "").toLowerCase();
+      const sym = String(c.symbol || "").toLowerCase();
+      return name.includes(q) || sym.includes(q);
+    });
+  }
+
   list.sort((a,b)=>compare(a,b,sortKey,sortDir));
   return list;
 }
 
 function renderRows(coins){
   tbody.innerHTML = "";
-  if (!coins.length){ tbody.innerHTML = `<tr><td colspan="7">No matching coins</td></tr>`; return; }
+  if (!coins.length){
+    tbody.innerHTML = `<tr><td colspan="7">No matching coins</td></tr>`;
+    if (subtitleEl) subtitleEl.textContent = "No matches for current filters";
+    return;
+  }
 
   for (const c of coins){
     const pct = Number(c.tf_change_pct ?? 0);
@@ -51,9 +65,9 @@ function renderRows(coins){
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${c.name}</td>
-      <td>${c.symbol.toUpperCase()}</td>
+      <td>${String(c.symbol || "").toUpperCase()}</td>
       <td>${formatMoney(c.current_price)}</td>
-      <td class="${pct>=0?"pos":"neg"}">${pct.toFixed(2)}%</td>
+      <td class="${pct >= 0 ? "pos" : "neg"}">${pct.toFixed(2)}%</td>
       <td>${selectedTf}</td>
       <td>${formatMoney(c.market_cap)}</td>
       <td><span class="signal ${signalClass(sig)}">${sig}</span></td>
@@ -62,10 +76,13 @@ function renderRows(coins){
   }
 
   const top = [...coins].sort((a,b)=>(b.tf_change_pct??-999)-(a.tf_change_pct??-999))[0];
-  if (subtitleEl && top) subtitleEl.textContent = `Top mover (${selectedTf}): ${top.name} ${Number(top.tf_change_pct??0).toFixed(2)}%`;
+  if (subtitleEl && top) subtitleEl.textContent = `Top mover (${selectedTf}): ${top.name} ${Number(top.tf_change_pct ?? 0).toFixed(2)}%`;
 }
 
-function applyFilterAndSort(){ renderRows(getFilteredCoins()); }
+function applyFilterAndSort(){
+  const visible = getFilteredCoins();
+  renderRows(visible);
+}
 
 async function fetchCoins(){
   if (isLoading) return;
@@ -79,13 +96,15 @@ async function fetchCoins(){
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const base = await res.json();
 
-    allCoins = base.slice(0, 50).map(c => ({
+    allCoins = base.slice(0, 100).map(c => ({
       ...c,
       tf_change_pct: tfFrom24h(c.price_change_percentage_24h, selectedTf)
     }));
 
     applyFilterAndSort();
-    statusEl.textContent = `Updated (${selectedTf}): ${new Date().toLocaleTimeString()}`;
+
+    const counts = allCoins.reduce((a,c)=>{ const s=signalForPct(c.tf_change_pct); a[s]=(a[s]||0)+1; return a; }, {});
+    statusEl.textContent = `Updated (${selectedTf}): ${new Date().toLocaleTimeString()} | BUY:${counts.BUY||0} HOLD:${counts.HOLD||0} SELL:${counts.SELL||0}`;
   } catch(err){
     console.error(err);
     statusEl.textContent = "Failed to load scanner data";
@@ -95,7 +114,10 @@ async function fetchCoins(){
   }
 }
 
-function startAutoRefresh(){ if (timerId) clearInterval(timerId); timerId = setInterval(fetchCoins, 60000); }
+function startAutoRefresh(){
+  if (timerId) clearInterval(timerId);
+  timerId = setInterval(fetchCoins, 60000);
+}
 
 refreshBtn?.addEventListener("click", fetchCoins);
 tfSelect?.addEventListener("change", fetchCoins);
