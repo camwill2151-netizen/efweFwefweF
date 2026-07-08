@@ -9,8 +9,23 @@ let isLoading = false;
 let sortKey = "market_cap";
 let sortDir = "desc";
 
+const STABLE_SYMBOLS = new Set([
+  "usdt","usdc","dai","busd","tusd","usdp","fdusd","gusd","lusd","frax","pyusd","usdd"
+]);
+const STABLE_NAMES = [
+  "tether","usd coin","dai","binance usd","trueusd","pax dollar","first digital usd",
+  "gemini dollar","liquity usd","frax","paypal usd","usdd"
+];
+
 function formatMoney(n) {
   return `$${Number(n ?? 0).toLocaleString()}`;
+}
+
+function isStablecoin(c) {
+  const sym = String(c.symbol || "").toLowerCase();
+  const name = String(c.name || "").toLowerCase();
+  if (STABLE_SYMBOLS.has(sym)) return true;
+  return STABLE_NAMES.some(n => name.includes(n));
 }
 
 function signalForCoin(coin) {
@@ -34,7 +49,13 @@ function compare(a, b, key, dir) {
 
 function getFilteredCoins() {
   const q = document.getElementById("searchInput")?.value?.trim().toLowerCase() || "";
+  const hideStable = document.getElementById("hideStable")?.checked ?? false;
+
   let list = [...allCoins];
+
+  if (hideStable) {
+    list = list.filter(c => !isStablecoin(c));
+  }
 
   if (q) {
     list = list.filter(
@@ -101,7 +122,7 @@ async function fetchCoins() {
 
   try {
     const url =
-      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=25&page=1&sparkline=false";
+      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false";
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     allCoins = await res.json();
@@ -148,7 +169,6 @@ function ensureControlsUI() {
     select.style.border = "1px solid #263056";
     select.style.background = "#0b1020";
     select.style.color = "#e8ecf7";
-
     select.innerHTML = `
       <option value="market_cap:desc">Sort: Market Cap ↓</option>
       <option value="market_cap:asc">Sort: Market Cap ↑</option>
@@ -157,31 +177,35 @@ function ensureControlsUI() {
       <option value="price_change_percentage_24h:desc">Sort: 24h % ↓</option>
       <option value="price_change_percentage_24h:asc">Sort: 24h % ↑</option>
     `;
-
     select.addEventListener("change", (e) => {
       const [k, d] = e.target.value.split(":");
       sortKey = k;
       sortDir = d;
       applyFilterAndSort();
     });
-
     controls.appendChild(select);
   }
-}
 
-function ensureSignalHeader() {
-  const headRow = document.querySelector("#coinsTable thead tr");
-  if (!headRow) return;
-  const hasSignal = [...headRow.children].some(th => th.textContent.trim().toLowerCase() === "signal");
-  if (!hasSignal) {
-    const th = document.createElement("th");
-    th.textContent = "Signal";
-    headRow.appendChild(th);
+  if (!document.getElementById("hideStable")) {
+    const wrap = document.createElement("label");
+    wrap.style.display = "inline-flex";
+    wrap.style.alignItems = "center";
+    wrap.style.gap = "8px";
+    wrap.style.fontSize = "14px";
+    wrap.style.color = "#9aa4c7";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.id = "hideStable";
+    cb.addEventListener("change", applyFilterAndSort);
+
+    wrap.appendChild(cb);
+    wrap.appendChild(document.createTextNode("Hide stablecoins"));
+    controls.appendChild(wrap);
   }
 }
 
 refreshBtn.addEventListener("click", fetchCoins);
 ensureControlsUI();
-ensureSignalHeader();
 fetchCoins();
 startAutoRefresh();
