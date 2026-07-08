@@ -1,13 +1,51 @@
 const tbody = document.querySelector("#coinsTable tbody");
 const statusEl = document.getElementById("status");
 const refreshBtn = document.getElementById("refreshBtn");
+const subtitleEl = document.querySelector(".subtitle");
 
 let allCoins = [];
 let timerId = null;
 let isLoading = false;
+let sortKey = "market_cap";
+let sortDir = "desc";
 
 function formatMoney(n) {
   return `$${Number(n ?? 0).toLocaleString()}`;
+}
+
+function compare(a, b, key, dir) {
+  const av = Number(a?.[key] ?? 0);
+  const bv = Number(b?.[key] ?? 0);
+  return dir === "asc" ? av - bv : bv - av;
+}
+
+function getFilteredCoins() {
+  const q = document.getElementById("searchInput")?.value?.trim().toLowerCase() || "";
+  let list = [...allCoins];
+
+  if (q) {
+    list = list.filter(
+      c =>
+        c.name.toLowerCase().includes(q) ||
+        c.symbol.toLowerCase().includes(q)
+    );
+  }
+
+  list.sort((a, b) => compare(a, b, sortKey, sortDir));
+  return list;
+}
+
+function renderTopMover(coins) {
+  if (!subtitleEl) return;
+  if (!coins.length) {
+    subtitleEl.textContent = "Simple live market view";
+    return;
+  }
+  const top = [...coins].sort(
+    (a, b) => (b.price_change_percentage_24h ?? -999) - (a.price_change_percentage_24h ?? -999)
+  )[0];
+  const pct = Number(top.price_change_percentage_24h ?? 0).toFixed(2);
+  subtitleEl.textContent = `Top mover: ${top.name} (${top.symbol.toUpperCase()}) ${pct}%`;
 }
 
 function renderRows(coins) {
@@ -17,6 +55,7 @@ function renderRows(coins) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td colspan="5">No matching coins</td>`;
     tbody.appendChild(tr);
+    renderTopMover([]);
     return;
   }
 
@@ -33,18 +72,12 @@ function renderRows(coins) {
     `;
     tbody.appendChild(tr);
   }
+
+  renderTopMover(coins);
 }
 
-function applyFilter() {
-  const q = document.getElementById("searchInput")?.value?.trim().toLowerCase() || "";
-  if (!q) return renderRows(allCoins);
-
-  const filtered = allCoins.filter(
-    c =>
-      c.name.toLowerCase().includes(q) ||
-      c.symbol.toLowerCase().includes(q)
-  );
-  renderRows(filtered);
+function applyFilterAndSort() {
+  renderRows(getFilteredCoins());
 }
 
 async function fetchCoins() {
@@ -59,7 +92,7 @@ async function fetchCoins() {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     allCoins = await res.json();
-    applyFilter();
+    applyFilterAndSort();
     statusEl.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
   } catch (err) {
     console.error(err);
@@ -75,7 +108,7 @@ function startAutoRefresh() {
   timerId = setInterval(fetchCoins, 30000);
 }
 
-function ensureSearchUI() {
+function ensureControlsUI() {
   const controls = document.querySelector(".controls");
   if (!controls) return;
 
@@ -89,13 +122,41 @@ function ensureSearchUI() {
     input.style.border = "1px solid #263056";
     input.style.background = "#0b1020";
     input.style.color = "#e8ecf7";
-    input.style.minWidth = "260px";
-    input.addEventListener("input", applyFilter);
+    input.style.minWidth = "240px";
+    input.addEventListener("input", applyFilterAndSort);
     controls.appendChild(input);
+  }
+
+  if (!document.getElementById("sortSelect")) {
+    const select = document.createElement("select");
+    select.id = "sortSelect";
+    select.style.padding = "10px 12px";
+    select.style.borderRadius = "10px";
+    select.style.border = "1px solid #263056";
+    select.style.background = "#0b1020";
+    select.style.color = "#e8ecf7";
+
+    select.innerHTML = `
+      <option value="market_cap:desc">Sort: Market Cap ↓</option>
+      <option value="market_cap:asc">Sort: Market Cap ↑</option>
+      <option value="current_price:desc">Sort: Price ↓</option>
+      <option value="current_price:asc">Sort: Price ↑</option>
+      <option value="price_change_percentage_24h:desc">Sort: 24h % ↓</option>
+      <option value="price_change_percentage_24h:asc">Sort: 24h % ↑</option>
+    `;
+
+    select.addEventListener("change", (e) => {
+      const [k, d] = e.target.value.split(":");
+      sortKey = k;
+      sortDir = d;
+      applyFilterAndSort();
+    });
+
+    controls.appendChild(select);
   }
 }
 
 refreshBtn.addEventListener("click", fetchCoins);
-ensureSearchUI();
+ensureControlsUI();
 fetchCoins();
 startAutoRefresh();
