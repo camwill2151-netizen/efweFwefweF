@@ -25,6 +25,7 @@ function compare(a,b,key,dir){ const av=Number(a?.[key] ?? 0), bv=Number(b?.[key
 
 function tfFrom24h(p24h, tf){
   const v = Number(p24h ?? 0);
+  if (tf === "15m") return v / 96;
   if (tf === "1h") return v / 24;
   if (tf === "4h") return v / 6;
   if (tf === "7d") return v * 7;
