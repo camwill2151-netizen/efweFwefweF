@@ -16,7 +16,6 @@ let sortKey = "market_cap";
 let sortDir = "desc";
 
 const STABLE_SYMBOLS = new Set(["usdt","usdc","dai","busd","tusd","usdp","fdusd","gusd","lusd","frax","pyusd","usdd"]);
-const TF_TO_HOURS = { "1h": 1, "4h": 4, "24h": 24, "7d": 168 };
 
 function formatMoney(n){ return `$${Number(n ?? 0).toLocaleString()}`; }
 function isStablecoin(c){ return STABLE_SYMBOLS.has(String(c.symbol||"").toLowerCase()); }
@@ -24,12 +23,25 @@ function signalForPct(pct){ if (pct <= -3) return "BUY"; if (pct >= 5) return "S
 function signalClass(s){ return s==="BUY" ? "sig-buy" : s==="SELL" ? "sig-sell" : "sig-hold"; }
 function compare(a,b,key,dir){ const av=Number(a?.[key]??0), bv=Number(b?.[key]??0); return dir==="asc" ? av-bv : bv-av; }
 
+function timeframePct(coin, tf){
+  const p1h = Number(coin.price_change_percentage_1h_in_currency ?? 0);
+  const p24h = Number(coin.price_change_percentage_24h ?? 0);
+  const p7d = Number(coin.price_change_percentage_7d_in_currency ?? 0);
+
+  if (tf === "1h") return p1h;
+  if (tf === "4h") return p1h * 4; // approximation fallback
+  if (tf === "7d") return p7d;
+  return p24h; // 24h
+}
+
 function getFilteredCoins(){
   const q = (searchInput?.value || "").trim().toLowerCase();
   const hide = hideStable?.checked ?? false;
   let list = [...allCoins];
+
   if (hide) list = list.filter(c => !isStablecoin(c));
   if (q) list = list.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));
+
   list.sort((a,b)=>compare(a,b,sortKey,sortDir));
   return list;
 }
@@ -60,24 +72,6 @@ function renderRows(coins){
 
 function applyFilterAndSort(){ renderRows(getFilteredCoins()); }
 
-async function getTfChangePct(coinId, currentPrice, hours){
-  const days = hours <= 24 ? 1 : 7;
-  const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=hourly`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`chart ${coinId} HTTP ${res.status}`);
-  const data = await res.json();
-  const prices = data?.prices || [];
-  if (!prices.length) return 0;
-
-  const targetTs = Date.now() - hours * 60 * 60 * 1000;
-  let closest = prices[0], minDelta = Math.abs(prices[0][0]-targetTs);
-  for (const p of prices){ const d=Math.abs(p[0]-targetTs); if (d<minDelta){ minDelta=d; closest=p; } }
-
-  const past = Number(closest[1] ?? 0);
-  if (!past) return 0;
-  return ((Number(currentPrice)-past)/past)*100;
-}
-
 async function fetchCoins(){
   if (isLoading) return;
   isLoading = true;
@@ -86,20 +80,12 @@ async function fetchCoins(){
   refreshBtn.disabled = true;
 
   try{
-    const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=30&page=1&sparkline=false");
+    const url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=1h,24h,7d";
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const base = await res.json();
 
-    const hours = TF_TO_HOURS[selectedTf] || 24;
-    const top = base.slice(0, 15);
-    const enriched = [];
-
-    for (const c of top){
-      try { enriched.push({ ...c, tf_change_pct: await getTfChangePct(c.id, c.current_price, hours) }); }
-      catch { enriched.push({ ...c, tf_change_pct: 0 }); }
-    }
-
-    allCoins = enriched;
+    allCoins = base.slice(0, 50).map(c => ({ ...c, tf_change_pct: timeframePct(c, selectedTf) }));
     applyFilterAndSort();
     statusEl.textContent = `Updated (${selectedTf}): ${new Date().toLocaleTimeString()}`;
   }catch(err){
